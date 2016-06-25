@@ -13,23 +13,20 @@ Use PLS regression to relate foliar nitrogen (plot level kg/ha) to remote sensin
 
 Decided to use the `PLS` package because it was cited in this paper: http://onlinelibrary.wiley.com/doi/10.1890/13-2110.1/full
 
-```{r LOAD PACKAGES}
+```{r SET-UP}
 
 library(pls)
-
-# load sample data
-
-data("gasoline")
+library(ggplot2)
+library(plotrix)
+library(dplyr)
+library(reshape2)
 
 ```
 
 
 # Use Kunxuan's code to create spectra for each plot
 
-Waiting for updated code to generate plot-level spectra.
-In the mean time, I am creating a dataframe with dummy data to test the PLSR
-
-```{r,eval=FALSE}
+```{r, LOAD-HS,eval=FALSE}
 
 # need Leah's code
 library(raster)
@@ -60,9 +57,51 @@ plot(hs_mean)
 
 ```
 
+```{r LONG-FUNCTION}
+
+# function to take refl matrix and transform to long format
+# set columns as numbers
+
+refl_melt <- function(refl_data.frame,id.var.name){
+  
+  # assume wavelenghts as column names
+  wavelength <- as.numeric(substr(x=colnames(refl_data.frame),
+                                  start=4,
+                                  stop = nchar(colnames(refl_data.frame))))
+  # reassign column names
+  colnames(refl_data.frame) <- wavelength
+  
+  df.long <- melt(refl_data.frame,id.vars=id.var.name)
+
+  # variables are numbers, convert to numeric for scatterplot
+  df.long$variable <- as.numeric(as.character(df.long$variable))
+  df.long$value <- as.numeric(df.long$value)
+
+}
+```
+
+
+
 ```{r PLOT-SPEC}
 
 hs_refl <- read.csv("output-data/plot_mean_reflectance.csv")
+
+# set columns as numbers
+wavelength <- as.numeric(substr(colnames(hs_refl[-1]),4,nchar(colnames(hs_refl)[-1])))  
+colnames(hs_refl)[-1] <- wavelength
+
+
+df.long <- melt(hs_refl,id.vars="plotID")
+
+# variables are numbers, convert to numeric for scatterplot
+df.long$variable <- as.numeric(as.character(df.long$variable))
+df.long$value <- as.numeric(df.long$value)
+
+ggplot(df.long,aes(x=variable,y=value))+
+  geom_point() +
+  theme_bw() +
+  scale_y_continuous(limits=c(0,.5)) +
+  labs(list(title="Plot mean reflectance\n Ordway-Swisher Bio. Station, FL",x="Wavelength",y="reflectance"))
 
 ```
 
@@ -98,6 +137,8 @@ n_kg <- n_kg[,-1]
 ## Merge data
 ```{r MERGE-DATA}
 
+# merge refl data to n data by plot
+# keep only those plots with N data
 df <- merge(n_kg,
             hs_refl,
             by.y="plotID",
@@ -105,36 +146,34 @@ df <- merge(n_kg,
             all.x=T,
             all.y=F)
 
-plot_refl <- data.frame(df[,6:374])
-
 df.use <- data.frame(N=df$foliar_n_per_tree,
-                 refl=I(as.matrix(plot_refl)))
+                 refl=I(as.matrix(df[,6:374])))
 
 ```
 
 
 ```{r TRAIN-TEST-GROUPS}
 
-dTrain <- gasoline[1:50,]
-dTest <- gasoline[51:60,]
-
-# test trait groups with neon data
-
+# don't have enough data to do test or train groups
 
 ```
 
 ```{r PLS-MODEL}
 
-m1 <- plsr(N ~ refl, data=df.use, ncomp = 4, validation = "LOO")
+# build PLSR model
+# number of components is limited because there are only 7 plots
+m1 <- plsr(N ~ refl, data=df.use, ncomp = 5, validation = "LOO")
+
+
 summary(m1)
 
 
 plot(RMSEP(m1), legendpos = "topright")
 
 # plot measured vs. predicted
-plot(m1, ncomp = 4, asp = 1, line = TRUE)
+plot(m1, ncomp = 5, asp = 1, line = TRUE)
 
-plot(m1, "loadings", comps = 1:2, legendpos = "topleft", xlab = "nm")
+plot(m1, "loadings", comps = 1:2, legendpos = "topright", xlab = "nm")
 abline(h = 0)
 
 plot(m1, ncomp = 2, asp = 1, line = TRUE,
@@ -148,7 +187,7 @@ plot(m1, ncomp = 2, asp = 1, line = TRUE,
 
 ## Apply model to training data
 
-```{r}
+```{r APPLY-MOD, eval=F}
 
 m1_predict <- predict(m1, ncomp = 3, newdata = dTest)
 
