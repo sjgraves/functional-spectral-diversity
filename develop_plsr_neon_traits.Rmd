@@ -62,20 +62,22 @@ plot(hs_mean)
 # function to take refl matrix and transform to long format
 # set columns as numbers
 
-refl_melt <- function(refl_data.frame,id.var.name){
+refl_melt <- function(data.frame,id.var.name="plotID"){
   
   # assume wavelenghts as column names
-  wavelength <- as.numeric(substr(x=colnames(refl_data.frame),
+  wavelength <- as.numeric(substr(x=colnames(data.frame)[-1],
                                   start=4,
-                                  stop = nchar(colnames(refl_data.frame))))
+                                  stop = nchar(colnames(data.frame)[-1])))
   # reassign column names
-  colnames(refl_data.frame) <- wavelength
+  colnames(data.frame)[-1] <- wavelength
   
-  df.long <- melt(refl_data.frame,id.vars=id.var.name)
+  df.long <- melt(data.frame,id.vars=id.var.name)
 
   # variables are numbers, convert to numeric for scatterplot
   df.long$variable <- as.numeric(as.character(df.long$variable))
   df.long$value <- as.numeric(df.long$value)
+  
+  return(df.long)
 
 }
 ```
@@ -84,20 +86,14 @@ refl_melt <- function(refl_data.frame,id.var.name){
 
 ```{r PLOT-SPEC}
 
+# load data file with reflectance for each plot
 hs_refl <- read.csv("output-data/plot_mean_reflectance.csv")
 
-# set columns as numbers
-wavelength <- as.numeric(substr(colnames(hs_refl[-1]),4,nchar(colnames(hs_refl)[-1])))  
-colnames(hs_refl)[-1] <- wavelength
+# apply function to create long format data
+df <- refl_melt(hs_refl,"plotID")
 
-
-df.long <- melt(hs_refl,id.vars="plotID")
-
-# variables are numbers, convert to numeric for scatterplot
-df.long$variable <- as.numeric(as.character(df.long$variable))
-df.long$value <- as.numeric(df.long$value)
-
-ggplot(df.long,aes(x=variable,y=value))+
+# plot
+ggplot(df,aes(x=variable,y=value))+
   geom_point() +
   theme_bw() +
   scale_y_continuous(limits=c(0,.5)) +
@@ -131,6 +127,24 @@ n_kg
 n_kg <- read.csv("supplemental_data/osbs_plot_n.csv")
 n_kg <- n_kg[,-1]
 
+png(filename="presentation_images/Nplot_boxplot.png",
+    width=600,height=600)
+  
+ggplot(data=df.merge,aes(factor(plant_group),total.n))+
+    geom_boxplot(fill="grey")+
+    labs(list(title="Plot N content",
+              x="Plot type",
+              y="Total N"))+
+    scale_x_discrete(labels=c("Conifer","Broadleaf"))+
+    theme_bw()+
+  theme(axis.text=element_text(size=12),
+        axis.title=element_text(size=14,face="bold"),
+        plot.title = element_text(size = rel(1.5)))
+
+dev.off()
+  
+  
+
 ```
 
 
@@ -139,15 +153,48 @@ n_kg <- n_kg[,-1]
 
 # merge refl data to n data by plot
 # keep only those plots with N data
-df <- merge(n_kg,
+df.merge <- merge(n_kg,
             hs_refl,
             by.y="plotID",
             by.x="plot_id",
             all.x=T,
             all.y=F)
 
-df.use <- data.frame(N=df$foliar_n_per_tree,
-                 refl=I(as.matrix(df[,6:374])))
+df.use <- data.frame(N=df.merge$foliar_n_per_tree,
+                 refl=I(as.matrix(df.merge[,6:374])))
+
+df.refl <- data.frame(plotID=df.merge$plot_id,
+                      df.merge[,6:374])
+
+df.Nplots.long <- refl_melt(df.refl)
+
+# plot
+ggplot(df.Nplots.long,aes(x=variable,y=value))+
+  geom_point(aes(col=plotID)) +
+  theme_bw() +
+  scale_y_continuous(limits=c(0,.5)) +
+  labs(list(title="Plot mean reflectance\n Ordway-Swisher Bio. Station, FL",
+            x="Wavelength",
+            y="reflectance"))
+
+png(filename="presentation_images/Nplot_spectra.png",
+    width=600,height=600)
+
+  # plot
+  ggplot(df.Nplots.long,aes(x=variable,y=value))+
+    geom_point(aes(col=plotID)) +
+    theme_bw() +
+    scale_y_continuous(limits=c(0,.5)) +
+    labs(list(title="Plot mean reflectance\n Ordway-Swisher Bio. Station, FL",
+              x="Wavelength",
+              y="Reflectance"))+
+    theme(axis.text=element_text(size=12),
+        axis.title=element_text(size=14,face="bold"),
+        plot.title = element_text(size = rel(1.5)))
+
+dev.off()
+
+
 
 ```
 
@@ -171,16 +218,16 @@ summary(m1)
 plot(RMSEP(m1), legendpos = "topright")
 
 # plot measured vs. predicted
-plot(m1, ncomp = 5, asp = 1, line = TRUE)
-
-plot(m1, "loadings", comps = 1:2, legendpos = "topright", xlab = "nm")
-abline(h = 0)
-
 plot(m1, ncomp = 2, asp = 1, line = TRUE,
      main="Plot-level foliar N content (kg)",
      pch=21,
      bg="springgreen",
      cex=2)
+
+plot(m1, "loadings", comps = 1:2, legendpos = "topright", xlab = "nm")
+abline(h = 0)
+
+
 
 
 ```
@@ -189,10 +236,29 @@ plot(m1, ncomp = 2, asp = 1, line = TRUE,
 
 ```{r APPLY-MOD, eval=F}
 
-m1_predict <- predict(m1, ncomp = 3, newdata = dTest)
+m1_predict <- predict(m1, ncomp = 3, newdata = df.use)
 
-plot(m1_predict ~ dTest$N,
-     main="Predicted vs. Observed")
+df.plot <- data.frame(Measured=df.use$N,
+                      Observed=as.numeric(m1_predict))
+
+png(filename = "presentation_images/Nplot_PLSRfit.png")
+  ggplot(data=df.plot,aes(Measured,Observed)) +
+    geom_point(size=4) +
+    geom_abline(slope=1,intercept=0) +
+    scale_x_continuous(limits=c(0,4)) +
+    scale_y_continuous(limits=c(0,4)) +
+    theme_bw() +
+    labs(list(title="Plot-level N content")) +
+    theme(axis.text=element_text(size=12),
+          axis.title=element_text(size=14,face="bold"),
+          plot.title = element_text(size = rel(1.5)))
+dev.off()
+
+
+plot(m1_predict ~ df.use$N,
+     main="Predicted vs. Observed",
+     xlim=c(0,3),
+     ylim=c(0,3))
 abline(0,1)
 
 ```
