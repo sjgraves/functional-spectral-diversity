@@ -127,21 +127,6 @@ n_kg
 n_kg <- read.csv("supplemental_data/osbs_plot_n.csv")
 n_kg <- n_kg[,-1]
 
-png(filename="presentation_images/Nplot_boxplot.png",
-    width=600,height=600)
-  
-ggplot(data=df.merge,aes(factor(plant_group),total.n))+
-    geom_boxplot(fill="grey")+
-    labs(list(title="Plot N content",
-              x="Plot type",
-              y="Total N"))+
-    scale_x_discrete(labels=c("Conifer","Broadleaf"))+
-    theme_bw()+
-  theme(axis.text=element_text(size=12),
-        axis.title=element_text(size=14,face="bold"),
-        plot.title = element_text(size = rel(1.5)))
-
-dev.off()
   
   
 
@@ -176,6 +161,23 @@ ggplot(df.Nplots.long,aes(x=variable,y=value))+
   labs(list(title="Plot mean reflectance\n Ordway-Swisher Bio. Station, FL",
             x="Wavelength",
             y="reflectance"))
+
+
+png(filename="presentation_images/Nplot_boxplot.png",
+    width=600,height=600)
+  
+ggplot(data=df.merge,aes(factor(plant_group),total.n))+
+    geom_boxplot(fill="grey")+
+    labs(list(title="Plot N content",
+              x="Plot type",
+              y="Total N"))+
+    scale_x_discrete(labels=c("Conifer","Broadleaf"))+
+    theme_bw()+
+  theme(axis.text=element_text(size=12),
+        axis.title=element_text(size=14,face="bold"),
+        plot.title = element_text(size = rel(1.5)))
+
+dev.off()
 
 png(filename="presentation_images/Nplot_spectra.png",
     width=600,height=600)
@@ -245,6 +247,7 @@ png(filename = "presentation_images/Nplot_PLSRfit.png")
   ggplot(data=df.plot,aes(Measured,Observed)) +
     geom_point(size=4) +
     geom_abline(slope=1,intercept=0) +
+    annotate("text", x = .5, y = 3.5, label = "RMSEP=1.232") +
     scale_x_continuous(limits=c(0,4)) +
     scale_y_continuous(limits=c(0,4)) +
     theme_bw() +
@@ -254,12 +257,6 @@ png(filename = "presentation_images/Nplot_PLSRfit.png")
           plot.title = element_text(size = rel(1.5)))
 dev.off()
 
-
-plot(m1_predict ~ df.use$N,
-     main="Predicted vs. Observed",
-     xlim=c(0,3),
-     ylim=c(0,3))
-abline(0,1)
 
 ```
 
