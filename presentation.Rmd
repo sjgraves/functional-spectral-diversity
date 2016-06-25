@@ -7,24 +7,23 @@ output: html_document
 # Analysis of canopy nitrogen and functional diversity using hyperspectral imagery and LiDAR
 ![Ordway-Swisher Biological Station, Florida](presentation_images/osbs.png)
 
+## Overall workflow
+
+There were 4 main steps to our analysis
+
+1. Extract hyperspectral data for each plot
+1. Calculate plot-level foliar nitrogen content
+1. Build Partial Least Squares Regression model
+1. Calculate plot-level functional diversity and spectral diversity
+
+![Overall workflow](presentation_images/overall_workflow.png)
+
 ```{r intro-section}
 
 
 
 ```
 
-
-```{r SARAH-CHUNK}
-
-# plot mean spectra for all plots
-
-# code for pls function
-
-# plot model components
-
-# plot fit
-
-```
 
 
 # Estimating canopy N foliar mass through a combintation of remote sensing, NEON in situ data, modelling, and training data.
@@ -62,3 +61,21 @@ if (length(recordRaster) == 1) {
 
 ```
 
+## Partial Least Squares Regression model
+
+Relate plot-level nitrogen (kg) to plot-mean spectral reflectance.
+
+![Plot spectra](presentation_images/Nplot_spectra.png)
+
+![Plot nitrogen](presentation_images/Nplot_boxplot.png)
+
+### PLSR model
+
+Use `PLSR` package
+
+```
+# model function
+m1 <- plsr(N ~ refl, data=df.use, ncomp = 5, validation = "LOO")
+```
+
+![PLSR model fit](presentation_images/Nplot_PLSRfit.png)
